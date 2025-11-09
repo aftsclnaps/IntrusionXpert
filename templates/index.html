@@ -1,0 +1,1398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IntrusionXpert</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Inter:wght@400;700&display=swap');
+
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            overflow: hidden;
+            background-color: #0d0d0d;
+            font-family: 'Inter', sans-serif;
+            color: #e0e0e0;
+        }
+
+        #three-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+            display: block;
+        }
+
+        .main-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1;
+        }
+
+        .glass-panel {
+            background-color: rgba(26, 26, 26, 0.85);
+            backdrop-filter: blur(10px);
+            border-radius: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.7);
+        }
+
+        .title {
+            font-family: 'Orbitron', sans-serif;
+            color: #00ff00;
+            text-shadow: 0 0 5px #00ff00, 0 0 10px #00ff00;
+        }
+        
+        .landing-title {
+            color: #ff0000;
+            text-shadow: 0 0 10px #ff0000, 0 0 20px #ff0000;
+        }
+        
+        @keyframes fadeInSlideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .fade-in-slide-up {
+            animation: fadeInSlideUp 1s ease-out forwards;
+            opacity: 0;
+        }
+        
+        .landing-title {
+            animation-delay: 0.2s;
+        }
+        
+.landing-subtitle {
+            animation-delay: 0.7s;
+        }
+        
+        .landing-btn {
+            animation-delay: 1.2s;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #00ff00, #00ffff);
+            color: black;
+            font-family: 'Orbitron', sans-serif;
+            border: none;
+            border-radius: 50px;
+            padding: 1rem 2rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px #00ff00, 0 0 30px #00ffff;
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, #2a2a2a, #333333);
+            color: #00ff00;
+            border-radius: 0.5rem;
+        }
+        .btn-secondary:hover {
+            box-shadow: 0 0 15px #00ff00;
+        }
+        
+        .btn-icon {
+            padding: 0.75rem;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-data {
+            /* Added flex and space-x-2 for better text handling */
+            display: flex;
+            align-items: center;
+            gap: 0.5rem; 
+            background: linear-gradient(90deg, #ff0000, #ff8c00);
+            color: white;
+            font-family: 'Orbitron', sans-serif;
+            padding: 1rem 2rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 15px rgba(255, 0, 0, 0.4);
+            /* Prevent wrapping issues on mobile */
+            white-space: nowrap; 
+        }
+        .btn-data:hover {
+            background: linear-gradient(90deg, #ff8c00, #ff0000);
+            box-shadow: 0 6px 20px rgba(255, 140, 0, 0.6);
+            transform: translateY(-2px);
+        }
+
+        .btn-download {
+            background: transparent;
+            color: #00ff00;
+            border: 2px solid #00ff00;
+            font-family: 'Orbitron', sans-serif;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            transition: background-color 0.2s, box-shadow 0.2s;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.4);
+        }
+        .btn-download:hover {
+            background-color: rgba(0, 255, 0, 0.1);
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.8);
+        }
+
+
+        .chart-container {
+            height: 400px;
+        }
+        
+        #sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            height: 100vh;
+            width: 300px;
+            background-color: rgba(16, 16, 16, 0.9);
+            backdrop-filter: blur(15px);
+            transform: translateX(-100%);
+            transition: transform 0.3s ease-in-out;
+            z-index: 20;
+            padding: 2rem;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        #sidebar.open {
+            transform: translateX(0);
+        }
+        
+        #menu-btn {
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 30;
+        }
+        
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(5px);
+            z-index: 50;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            max-width: 90%;
+            max-height: 90%;
+            width: 600px;
+            box-shadow: 0 0 30px rgba(255, 0, 0, 0.5);
+            animation: modal-appear 0.3s ease-out;
+        }
+
+        @keyframes modal-appear {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        #data-table th, #data-table td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid rgba(0, 255, 0, 0.2);
+            font-family: 'Inter', monospace;
+            text-align: left;
+        }
+
+        #data-table th {
+            color: #00ff00;
+            font-family: 'Orbitron', sans-serif;
+            border-bottom: 2px solid #00ff00;
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- 3D Visualization Canvas -->
+    <canvas id="three-canvas"></canvas>
+
+    <div class="main-container">
+        <!-- Landing Page - The entry point of the application -->
+        <div id="landing-page" class="p-8 lg:p-16 max-w-4xl transition-all duration-500 ease-in-out">
+            <div class="text-center">
+                <h1 class="landing-title text-5xl lg:text-8xl font-bold mb-4 fade-in-slide-up landing-title">IntrusionXpert</h1>
+                <p class="text-xl lg:text-2xl text-gray-400 mb-8 fade-in-slide-up landing-subtitle">A network intrusion detection system powered by an Adaptive Finite State Machine and Explainable AI.</p>
+                <button id="get-started-btn" class="btn text-xl lg:text-2xl fade-in-slide-up landing-btn">Enter System</button>
+            </div>
+        </div>
+
+        <!-- Dashboard Page - The main control panel -->
+        <div id="dashboard-page" class="p-4 lg:p-8 overflow-y-auto hidden w-full h-full" style="padding-left: 5rem;">
+            <div class="flex flex-col lg:flex-row gap-8 lg:max-h-full">
+                <!-- Main Content Area -->
+                <div class="flex-grow flex flex-col min-h-screen">
+                    <header class="flex justify-between items-center mb-6">
+                        <h2 class="title text-3xl font-bold">Dashboard</h2>
+                        <div class="flex gap-4">
+                            <!-- Fullscreen Button -->
+                            <button id="fullscreen-btn" class="btn btn-secondary btn-icon shadow-lg" title="Toggle Fullscreen">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <!-- Maximize Icon (Default) -->
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5m0 11v-4m0 4h-4m4 0l-5-5m-5 5H4m0 0v-4m0 4l5-5"/>
+                                </svg>
+                            </button>
+                            <button id="go-back-btn" class="btn btn-secondary text-sm py-2 px-4">Go Back</button>
+                        </div>
+                    </header>
+                    
+                    <!-- Upload Section -->
+                    <div class="glass-panel p-6 mb-8">
+                        <h3 class="title text-xl mb-4">Upload Your Data</h3>
+                        <p class="text-gray-400 mb-4 text-sm">Upload a new CSV file containing network traffic data for analysis.</p>
+                        <div class="flex flex-col sm:flex-row items-center gap-4">
+                            <input type="file" id="file-input" class="hidden" accept=".csv">
+                            <label for="file-input" id="upload-label" class="flex-grow text-center py-3 px-4 bg-gray-700 text-gray-300 border border-dashed border-gray-600 rounded-md cursor-pointer hover:bg-gray-600 transition-colors">
+                                Select CSV File (Simulated: traffic.csv)
+                            </label>
+                            <!-- Updated: Removed packet count from button -->
+                            <button id="analyse-btn" class="btn text-sm py-3 px-6 w-full sm:w-auto">Run Analysis</button>
+                        </div>
+                    </div>
+
+                    <!-- Summary Cards -->
+                    <div id="summary-section" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                        <!-- Cards will be dynamically added here by JavaScript -->
+                    </div>
+
+                    <!-- Charts Section 1: Malicious Probability -->
+                    <div class="glass-panel p-6 mb-8 chart-container">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="title text-xl">Malicious Probability Over Time</h3>
+                            <button onclick="openChartExpander('prob')" class="text-gray-400 hover:text-[#00ff00] transition-colors p-1 rounded-full hover:bg-gray-800" title="Expand Chart">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5m0 11v-4m0 4h-4m4 0l-5-5m-5 5H4m0 0v-4m0 4l5-5"/></svg>
+                            </button>
+                        </div>
+                        <canvas id="prob-chart" class="bg-transparent"></canvas>
+                        <!-- Explanation for Malicious Probability Chart -->
+                        <p class="text-gray-500 text-xs mt-2 italic">
+                            This chart tracks the model's raw score (**Light Blue Line**) for every packet. A higher score means the packet is more likely to be malicious.
+                        </p>
+                    </div>
+
+                    <!-- Charts Section 2: FSM State -->
+                    <div class="glass-panel p-6 mb-8 chart-container">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="title text-xl">FSM State Over Time</h3>
+                            <button onclick="openChartExpander('state')" class="text-gray-400 hover:text-[#00ff00] transition-colors p-1 rounded-full hover:bg-gray-800" title="Expand Chart">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5m0 11v-4m0 4h-4m4 0l-5-5m-5 5H4m0 0v-4m0 4l5-5"/></svg>
+                            </button>
+                        </div>
+                        <canvas id="state-chart" class="bg-transparent"></canvas>
+                        <!-- Explanation for FSM State Chart (Updated for new visual style) -->
+                        <p class="text-gray-500 text-xs mt-2 italic">
+                            This graph shows the system status using **colored horizontal lines** to mark the state boundaries over time. The colors show increasing threat severity: 
+                            <span style="color:#00ff00; font-weight:bold;">Green (Normal)</span>, 
+                            <span style="color:#ffff00; font-weight:bold;">Yellow (Suspicious)</span>, 
+                            <span style="color:#ff8c00; font-weight:bold;">Orange (Intrusion)</span>, and 
+                            <span style="color:#ff0000; font-weight:bold;">Red (Alert)</span>.
+                        </p>
+                    </div>
+
+                    <!-- Charts Section 3: FSM Parameters -->
+                    <div class="glass-panel p-6 mb-8 chart-container">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="title text-xl">FSM Parameter Adaptivity</h3>
+                            <button onclick="openChartExpander('params')" class="text-gray-400 hover:text-[#00ff00] transition-colors p-1 rounded-full hover:bg-gray-800" title="Expand Chart">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5m0 11v-4m0 4h-4m4 0l-5-5m-5 5H4m0 0v-4m0 4l5-5"/></svg>
+                            </button>
+                        </div>
+                        <canvas id="params-chart" class="bg-transparent"></canvas>
+                        <!-- Explanation for Parameter Chart -->
+                        <p class="text-gray-500 text-xs mt-2 italic">
+                            This chart visualizes how the FSM's core settings (**Threshold, K, and M**) automatically adapt based on the recent history of network activity to stay sensitive to new threats.
+                        </p>
+                    </div>
+
+                    <!-- New Button for Full Data (Now dynamically updated) -->
+                    <div class="mb-8 flex justify-center">
+                        <!-- Changed the inner structure of the button to use a span for separation -->
+                        <button id="view-data-btn" class="btn-data text-lg font-bold">
+                            <span id="view-data-text">View Full Analysis Data</span>
+                            <span id="view-data-count"></span>
+                        </button>
+                    </div>
+                    
+                    <div class="glass-panel p-6 flex-grow">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="title text-xl">Explainability (SHAP)</h3>
+                            <button onclick="openChartExpander('shap')" class="text-gray-400 hover:text-[#00ff00] transition-colors p-1 rounded-full hover:bg-gray-800" title="Expand Plot">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5m0 11v-4m0 4h-4m4 0l-5-5m-5 5H4m0 0v-4m0 4l5-5"/></svg>
+                            </button>
+                        </div>
+                        <p class="text-gray-400 mb-4 text-sm">Select a malicious packet to see why it was classified as such.</p>
+                        <select id="packet-select" class="w-full bg-gray-700 text-white border border-gray-600 rounded-md p-2 mb-4 focus:outline-none focus:ring-2 focus:ring-[#00ff00]"></select>
+                        <div id="shap-plot"></div>
+                        <p id="shap-caption" class="text-sm text-gray-500 mt-4 italic"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sidebar for configuration -->
+    <div id="sidebar">
+        <h3 class="title text-2xl mb-6">FSM Configuration</h3>
+        <button id="close-sidebar-btn" class="absolute top-4 right-4 text-gray-500 hover:text-gray-200">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        </button>
+        <div class="space-y-6">
+            <div>
+                <label for="base-threshold" class="block text-sm font-medium mb-2">Base malicious threshold</label>
+                <input type="range" id="base-threshold" min="0.5" max="0.95" step="0.01" value="0.7" class="w-full accent-[#00ff00]">
+                <span id="threshold-val" class="text-sm text-gray-400">0.7</span>
+            </div>
+            <div>
+                <label for="base-k" class="block text-sm font-medium mb-2">Base k_to_intrusion (Suspicious -> Intrusion)</label>
+                <input type="range" id="base-k" min="1" max="5" step="1" value="2" class="w-full accent-[#00ff00]">
+                <span id="k-val" class="text-sm text-gray-400">2</span>
+            </div>
+            <div>
+                <label for="base-m" class="block text-sm font-medium mb-2">Base m_to_normal (Return to Normal)</label>
+                <input type="range" id="base-m" min="1" max="5" step="1" value="2" class="w-full accent-[#00ff00]">
+                <span id="m-val" class="text-sm text-gray-400">2</span>
+            </div>
+            <div>
+                <label for="adapt-window" class="block text-sm font-medium mb-2">Adapt window size</label>
+                <input type="range" id="adapt-window" min="20" max="300" step="1" value="100" class="w-full accent-[#00ff00]">
+                <span id="adapt-window-val" class="text-sm text-gray-400">100</span>
+            </div>
+        </div>
+        <p class="text-xs text-gray-500 mt-8">Note: Changing configuration requires clicking "Run Analysis" again.</p>
+    </div>
+    
+    <!-- Menu button to toggle sidebar -->
+    <button id="menu-btn" class="btn btn-secondary p-3 rounded-full shadow-lg">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16m-7 6h7" />
+        </svg>
+    </button>
+    
+    <!-- Overlay to close sidebar on click -->
+    <div id="overlay"></div>
+
+    <!-- Full Data Modal -->
+    <div id="data-modal" class="modal-backdrop">
+        <div class="modal-content glass-panel p-6 flex flex-col">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="title text-2xl">Packet Probability Scores</h3>
+                <button id="close-modal-btn" class="text-gray-400 hover:text-white transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="overflow-y-auto max-h-[70vh] mb-4">
+                <table id="data-table" class="w-full border-collapse">
+                    <thead>
+                        <tr>
+                            <th>Packet Index (1-N)</th>
+                            <th>Probability Score</th>
+                            <th>Classification</th>
+                        </tr>
+                    </thead>
+                    <tbody id="data-table-body">
+                        <!-- Data will be injected here -->
+                    </tbody>
+                </table>
+            </div>
+            <!-- Download Button at the end of the table content -->
+            <div class="flex justify-end pt-4 border-t border-gray-700">
+                <button id="download-data-btn" class="btn-download text-base font-bold">
+                    Download Analysis CSV
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart Expander Modal (New for full-screen chart viewing) -->
+    <div id="chart-expander-modal" class="modal-backdrop">
+        <div class="modal-content glass-panel p-6 flex flex-col w-[95vw] h-[95vh] max-w-none max-h-none">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="expanded-chart-title" class="title text-2xl">Expanded View</h3>
+                <button id="close-chart-expander-btn" class="text-gray-400 hover:text-white transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <!-- Container for the expanded chart/plot -->
+            <div id="expanded-chart-container" class="flex-grow w-full h-full relative">
+                <!-- Canvases are re-rendered here dynamically -->
+            </div>
+        </div>
+    </div>
+
+<script>
+    let state = {
+        page: 'landing',
+        analysisResults: null,
+        // Renamed 'timeline' to 'prob' and added 'state'
+        charts: { prob: null, state: null, params: null },
+        three: {
+            scene: null, camera: null, renderer: null,
+            crystal: null, wireframe: null, particlesMesh: null, networkLines: null, packets: [],
+            nodes: []
+        },
+        sidebarOpen: false,
+        currentPacketCount: 0 // Set initial count to 0
+    };
+
+    const MAX_SIMULATED_PACKETS = 50000; // Updated max limit to 50k
+
+    const elements = {
+        threeCanvas: document.getElementById('three-canvas'),
+        landingPage: document.getElementById('landing-page'),
+        dashboardPage: document.getElementById('dashboard-page'),
+        getStartedBtn: document.getElementById('get-started-btn'),
+        analyseBtn: document.getElementById('analyse-btn'),
+        goBackBtn: document.getElementById('go-back-btn'),
+        fullscreenBtn: document.getElementById('fullscreen-btn'), 
+        fullscreenIcon: document.getElementById('fullscreen-icon'), 
+        summarySection: document.getElementById('summary-section'),
+        // Renamed 'timeline-chart' to 'prob-chart'
+        probCanvas: document.getElementById('prob-chart'), 
+        // New canvas for FSM state
+        stateCanvas: document.getElementById('state-chart'),
+        paramsCanvas: document.getElementById('params-chart'),
+        shapPlot: document.getElementById('shap-plot'),
+        shapSelect: document.getElementById('packet-select'),
+        shapCaption: document.getElementById('shap-caption'),
+        thresholdSlider: document.getElementById('base-threshold'),
+        kSlider: document.getElementById('base-k'),
+        mSlider: document.getElementById('base-m'),
+        windowSlider: document.getElementById('adapt-window'),
+        thresholdVal: document.getElementById('threshold-val'),
+        kVal: document.getElementById('k-val'),
+        mVal: document.getElementById('m-mVal'),
+        windowVal: document.getElementById('adapt-window-val'),
+        sidebar: document.getElementById('sidebar'),
+        menuBtn: document.getElementById('menu-btn'),
+        overlay: document.getElementById('overlay'),
+        viewDataBtn: document.getElementById('view-data-btn'),
+        dataModal: document.getElementById('data-modal'),
+        closeModalBtn: document.getElementById('close-modal-btn'),
+        dataTableBody: document.getElementById('data-table-body'),
+        closeSidebarBtn: document.getElementById('close-sidebar-btn'),
+        downloadDataBtn: document.getElementById('download-data-btn'),
+        chartExpanderModal: document.getElementById('chart-expander-modal'),
+        closeChartExpanderBtn: document.getElementById('close-chart-expander-btn'),
+        expandedChartTitle: document.getElementById('expanded-chart-title'),
+        expandedChartContainer: document.getElementById('expanded-chart-container'),
+        fileInput: document.getElementById('file-input'),
+        uploadLabel: document.getElementById('upload-label'),
+        viewDataText: document.getElementById('view-data-text'),
+        viewDataCount: document.getElementById('view-data-count')
+    };
+
+    const FSM_STATE_COLORS = {
+        'Normal': '#00ff00',
+        'Suspicious': '#ffff00',
+        'Intrusion': '#ff8c00',
+        'Alert': '#ff0000',
+        'Not Detected': '#6b7280'
+    };
+
+    const SIMULATED_FEATURE_NAMES = [
+        'duration', 'protocol_type', 'service', 'flag', 'src_bytes', 'dst_bytes',
+        'count', 'srv_count', 'serror_rate', 'srv_serror_rate'
+    ];
+    
+    class AdaptiveFSM {
+        constructor(base_threshold = 0.7, base_k = 2, base_m = 2, window = 100) {
+            this.state = "Normal";
+            this.base_threshold = base_threshold;
+            this.base_k = base_k;
+            this.base_m = base_m;
+            this.window = window;
+            this.win_probs = [];
+            this.mal_count = 0;
+            this.ben_count = 0;
+        }
+
+        currentParams() {
+            if (this.win_probs.length < this.window / 2) {
+                return { thr: this.base_threshold, k: this.base_k, m: this.base_m };
+            }
+            const mean_p = this.win_probs.slice(-this.window).reduce((a, b) => a + b) / this.window;
+            const thr = Math.max(0.55, Math.min(0.9, this.base_threshold - 0.2 * (mean_p - 0.5)));
+            const k = Math.max(1, Math.min(4, Math.round(this.base_k - 3.0 * (mean_p - 0.5))));
+            const m = Math.max(1, Math.min(4, Math.round(this.base_m - 1.0 * (0.5 - mean_p))));
+            return { thr, k, m };
+        }
+
+        step(mal_prob) {
+            this.win_probs.push(mal_prob);
+            if (this.win_probs.length > this.window) this.win_probs.shift();
+            const { thr, k, m } = this.currentParams();
+            const is_mal = mal_prob >= thr;
+            if (is_mal) {
+                this.mal_count++;
+                this.ben_count = 0;
+            } else {
+                this.ben_count++;
+                this.mal_count = 0;
+            }
+            if (this.state === "Normal") {
+                if (is_mal) this.state = "Suspicious";
+            } else if (this.state === "Suspicious") {
+                if (this.mal_count >= k) this.state = "Intrusion";
+                else if (this.ben_count >= m) this.state = "Normal";
+            } else if (this.state === "Intrusion") {
+                if (this.mal_count >= k) this.state = "Alert";
+                else if (this.ben_count >= m) this.state = "Normal";
+            } else if (this.state === "Alert") {
+                if (this.ben_count >= m) this.state = "Normal";
+            }
+            return { state: this.state, params: { thr, k, m } };
+        }
+    }
+
+    function initThreeJS() {
+        // ... (ThreeJS initialization code remains unchanged)
+        const { three } = state;
+        const canvas = elements.threeCanvas;
+        
+        three.scene = new THREE.Scene();
+        three.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        three.camera.position.z = 5;
+        three.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+        three.renderer.setSize(window.innerWidth, window.innerHeight);
+        three.renderer.setPixelRatio(window.devicePixelRatio);
+
+        const ambientLight = new THREE.AmbientLight(0x111111, 2);
+        three.scene.add(ambientLight);
+        const pointLight1 = new THREE.PointLight(0x00ff00, 5, 100);
+        pointLight1.position.set(5, 5, 5);
+        three.scene.add(pointLight1);
+        const pointLight2 = new THREE.PointLight(0x00ffff, 5, 100);
+        pointLight2.position.set(-5, -5, -5);
+        three.scene.add(pointLight2);
+        
+        const geometry = new THREE.IcosahedronGeometry(2, 2);
+        const edges = new THREE.EdgesGeometry(geometry);
+        const lineMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.8 });
+        three.wireframe = new THREE.LineSegments(edges, lineMaterial);
+        three.scene.add(three.wireframe);
+
+        const particlesGeometry = new THREE.BufferGeometry();
+        const particlesCount = 5000;
+        const posArray = new Float32Array(particlesCount * 3);
+        for (let i = 0; i < particlesCount * 3; i++) {
+            posArray[i] = (Math.random() - 0.5) * 20;
+        }
+        particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+        const particlesMaterial = new THREE.PointsMaterial({
+            size: 0.05, color: 0x00ffff, transparent: true, blending: THREE.AdditiveBlending,
+        });
+        three.particlesMesh = new THREE.Points(particlesGeometry, particlesMaterial);
+        three.scene.add(three.particlesMesh);
+        
+        const nodesCount = 50;
+        const packetGeometry = new THREE.SphereGeometry(0.05, 8, 8);
+        const packetMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+
+        for (let i = 0; i < nodesCount; i++) {
+            three.nodes.push(new THREE.Vector3(
+                (Math.random() - 0.5) * 10,
+                (Math.random() - 0.5) * 10,
+                (Math.random() - 0.5) * 10
+            ));
+        }
+
+        const lineGeometry = new THREE.BufferGeometry();
+        const linePositions = [];
+        for (let i = 0; i < nodesCount; i++) {
+            for (let j = i + 1; j < nodesCount; j++) {
+                if (three.nodes[i].distanceTo(three.nodes[j]) < 3) {
+                    linePositions.push(...three.nodes[i].toArray());
+                    linePositions.push(...three.nodes[j].toArray());
+                }
+            }
+        }
+        lineGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(linePositions), 3));
+        const networkMaterial = new THREE.LineBasicMaterial({
+            color: 0x00ff00, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending
+        });
+        three.networkLines = new THREE.LineSegments(lineGeometry, networkMaterial);
+        three.scene.add(three.networkLines);
+        
+        for(let i = 0; i < 20; i++) {
+            const packet = new THREE.Mesh(packetGeometry, packetMaterial);
+            packet.position.copy(three.nodes[Math.floor(Math.random() * nodesCount)]);
+            packet.destination = three.nodes[Math.floor(Math.random() * nodesCount)];
+            packet.speed = Math.random() * 0.02 + 0.005;
+            three.packets.push(packet);
+            three.scene.add(packet);
+        }
+
+        window.addEventListener('resize', onWindowResize, false);
+    }
+    
+    function onWindowResize() {
+        // ... (ThreeJS resize code remains unchanged)
+        const { three } = state;
+        three.camera.aspect = window.innerWidth / window.innerHeight;
+        three.camera.updateProjectionMatrix();
+        three.renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    function animate() {
+        // ... (ThreeJS animation code remains unchanged)
+        requestAnimationFrame(animate);
+        const { three } = state;
+        if (!three.renderer) return;
+
+        three.wireframe.rotation.x += 0.002;
+        three.wireframe.rotation.y += 0.003;
+        
+        three.particlesMesh.rotation.y += 0.0005;
+        three.networkLines.rotation.y += 0.0005;
+        
+        three.networkLines.material.opacity = (Math.sin(Date.now() * 0.001) * 0.2) + 0.3;
+        
+        three.packets.forEach(packet => {
+            const direction = new THREE.Vector3().subVectors(packet.destination, packet.position);
+            if (direction.length() < 0.1) {
+                packet.destination = three.nodes[Math.floor(Math.random() * three.nodes.length)];
+            } else {
+                packet.position.add(direction.normalize().multiplyScalar(packet.speed));
+            }
+        });
+        
+        three.renderer.render(three.scene, three.camera);
+    }
+
+    function toggleFullscreen() {
+        // ... (Fullscreen code remains unchanged)
+        const docEl = document.documentElement;
+        const icon = elements.fullscreenIcon;
+
+        if (!document.fullscreenElement) {
+            docEl.requestFullscreen().then(() => {
+                icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 4H4v4m0 8v4h4m8-4h4v4m0-8V4h-4"/>';
+            }).catch(err => {
+                console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+            });
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen().then(() => {
+                    icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5m0 11v-4m0 4h-4m4 0l-5-5m-5 5H4m0 0v-4m0 4l5-5"/>';
+                });
+            }
+        }
+    }
+
+    document.addEventListener('fullscreenchange', () => {
+        // ... (Fullscreen change code remains unchanged)
+        const icon = elements.fullscreenIcon;
+        const maximizeSvg = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5m0 11v-4m0 4h-4m4 0l-5-5m-5 5H4m0 0v-4m0 4l5-5"/>';
+        const minimizeSvg = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 4H4v4m0 8v4h4m8-4h4v4m0-8V4h-4"/>';
+
+        if (!document.fullscreenElement) {
+            icon.innerHTML = maximizeSvg;
+        } else {
+            icon.innerHTML = minimizeSvg;
+        }
+    });
+
+    function toggleSidebar() {
+        // ... (Sidebar code remains unchanged)
+        state.sidebarOpen = !state.sidebarOpen;
+        elements.sidebar.classList.toggle('open');
+        elements.overlay.classList.toggle('active');
+    }
+
+    function showPage(pageId) {
+        // ... (Show page code remains unchanged)
+        elements.landingPage.classList.add('hidden');
+        elements.dashboardPage.classList.add('hidden');
+        document.getElementById(pageId).classList.remove('hidden');
+        state.page = pageId;
+        
+        state.sidebarOpen = false;
+        elements.sidebar.classList.remove('open');
+        elements.overlay.classList.remove('active');
+        
+        elements.menuBtn.style.display = (pageId === 'dashboard-page') ? 'block' : 'none';
+        
+        elements.dataModal.style.display = 'none';
+        elements.chartExpanderModal.style.display = 'none';
+        
+        if (pageId === 'dashboard-page') {
+            document.body.style.overflow = 'visible';
+            document.getElementById('dashboard-page').style.overflowY = 'auto';
+        } else {
+            document.body.style.overflow = 'hidden';
+            document.getElementById('dashboard-page').style.overflowY = 'hidden';
+        }
+    }
+
+    function createSummaryCard(title, value, color = 'white') {
+        // ... (Summary card creation remains unchanged)
+        return `
+            <div class="glass-panel p-6 text-center">
+                <h3 class="title text-xl mb-2" style="color:${color};">${title}</h3>
+                <p class="text-4xl font-bold font-['Orbitron']">${value}</p>
+            </div>
+        `;
+    }
+    
+    function updateInitialDashboardState() {
+        // Updated to reflect initial state
+        elements.summarySection.innerHTML = `
+            ${createSummaryCard("Total Packets", 0, FSM_STATE_COLORS['Not Detected'])}
+            ${createSummaryCard("Intrusions Detected", 0, FSM_STATE_COLORS['Not Detected'])}
+            ${createSummaryCard("Live Status", 'NOT DETECTED', FSM_STATE_COLORS['Not Detected'])}
+        `;
+        // Destroy existing charts if they exist
+        if (state.charts.prob) state.charts.prob.destroy();
+        if (state.charts.state) state.charts.state.destroy();
+        if (state.charts.params) state.charts.params.destroy();
+        
+        elements.shapSelect.innerHTML = `<option>Run analysis to generate data</option>`;
+        elements.shapPlot.innerHTML = `<p class="text-gray-500 italic p-4">No analysis data available yet.</p>`;
+        elements.shapCaption.textContent = '';
+        
+        elements.viewDataText.textContent = `View Full Analysis Data`;
+        elements.viewDataCount.textContent = `(0 Entries)`;
+
+        elements.analyseBtn.textContent = `Run Analysis`; 
+    }
+
+
+    function simulateAnalysis(numPackets = state.currentPacketCount) {
+        // Only run simulation if we have packets
+        if (numPackets <= 0) {
+            state.analysisResults = null;
+            updateInitialDashboardState();
+            return;
+        }
+
+        const probs = new Array(numPackets).fill(0).map((_, i) => {
+            let base = Math.sin(i / 50) * 0.2 + 0.5;
+            let noise = (Math.random() - 0.5) * 0.1;
+            return Math.max(0.1, Math.min(0.9, base + noise));
+        });
+        
+        const fsm = new AdaptiveFSM(
+            parseFloat(elements.thresholdSlider.value),
+            parseInt(elements.kSlider.value),
+            parseInt(elements.mSlider.value),
+            parseInt(elements.windowSlider.value)
+        );
+        
+        const states = [];
+        const params = { thr: [], k: [], m: [] };
+        for (const prob of probs) {
+            const { state: newState, params: currentParams } = fsm.step(prob);
+            states.push(newState);
+            params.thr.push(currentParams.thr);
+            params.k.push(currentParams.k);
+            params.m.push(currentParams.m);
+        }
+        
+        state.analysisResults = { probs, states, params };
+        
+        const baselineThreshold = 0.7; 
+        const maliciousIndices = state.analysisResults.probs
+            .map((prob, i) => prob >= baselineThreshold ? i : -1)
+            .filter(i => i !== -1);
+            
+        elements.shapSelect.innerHTML = maliciousIndices.length > 0
+            ? maliciousIndices.map(idx => `<option value="${idx}">Packet ${idx + 1} (Prob: ${state.analysisResults.probs[idx].toFixed(3)})</option>`).join('')
+            : `<option>No malicious packets detected</option>`;
+            
+        if (maliciousIndices.length > 0) {
+            updateShapPlot(maliciousIndices[0]);
+        } else {
+            elements.shapPlot.innerHTML = `<p class="text-gray-500 italic p-4">No malicious packets were detected above threshold ${baselineThreshold.toFixed(2)} in this simulation run.</p>`;
+            elements.shapCaption.textContent = '';
+        }
+        
+        updateDashboardUI();
+    }
+
+    function updateDashboardUI() {
+        if (!state.analysisResults) return;
+        const { probs, states } = state.analysisResults;
+        const totalPackets = probs.length;
+        const intrusionsDetected = states.filter(s => s === 'Intrusion' || s === 'Alert').length;
+        const finalState = states[states.length - 1];
+        const statusColor = FSM_STATE_COLORS[finalState];
+        
+        elements.summarySection.innerHTML = `
+            ${createSummaryCard("Total Packets", totalPackets, '#00ffff')}
+            ${createSummaryCard("Intrusions Detected", intrusionsDetected, '#ff0000')}
+            ${createSummaryCard("Live Status", finalState.toUpperCase(), statusColor)}
+        `;
+
+        elements.viewDataText.textContent = `View Full Analysis Data`;
+        elements.viewDataCount.textContent = `(${totalPackets.toLocaleString()} Entries)`;
+
+        elements.analyseBtn.textContent = `Run Analysis`; 
+        
+        // Destroy old charts
+        if (state.charts.prob) state.charts.prob.destroy();
+        if (state.charts.state) state.charts.state.destroy();
+        if (state.charts.params) state.charts.params.destroy();
+        
+        // Render new charts
+        renderProbChart(elements.probCanvas, state.analysisResults);
+        renderStateChart(elements.stateCanvas, state.analysisResults);
+        renderParamsChart(elements.paramsCanvas, state.analysisResults);
+    }
+
+    // --- CHART CONFIGURATION FOR MALICIOUS PROBABILITY ---
+    function getProbChartOptions(chartType) {
+        return {
+            responsive: true, 
+            maintainAspectRatio: chartType !== 'expander',
+            scales: {
+                x: { display: true, title: { display: true, text: 'Packet Index', color: '#ccc' }, ticks: { color: '#888' }, grid: { color: '#444', drawBorder: false } },
+                // Y-axis for Malicious Probability (0 to 1)
+                y: { 
+                    display: true, 
+                    title: { display: true, text: 'Probability Score (0-1)', color: '#ccc' }, 
+                    min: 0, max: 1, 
+                    ticks: { color: '#00ffff', stepSize: 0.1 }, 
+                    grid: { color: '#444', drawBorder: false } 
+                },
+            },
+            plugins: { legend: { labels: { color: '#ccc' } } }
+        };
+    }
+
+    function getProbChartData(analysisResults) {
+        const { probs } = analysisResults;
+        return {
+            labels: probs.map((_, i) => i + 1),
+            datasets: [
+                {
+                    label: 'Malicious Probability',
+                    data: probs, 
+                    borderColor: '#00ffff', 
+                    borderWidth: 2, 
+                    backgroundColor: 'rgba(0, 255, 255, 0.2)', 
+                    fill: 'origin',
+                    tension: 0.2, 
+                    pointRadius: 0, 
+                    yAxisID: 'y'
+                }
+            ]
+        };
+    }
+
+    function renderProbChart(canvas, analysisResults, chartType = 'dashboard') {
+        const ctx = canvas.getContext('2d');
+        if (state.charts.prob && chartType === 'dashboard') state.charts.prob.destroy();
+        
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: getProbChartData(analysisResults),
+            options: getProbChartOptions(chartType)
+        });
+
+        if (chartType === 'dashboard') state.charts.prob = chart;
+        return chart;
+    }
+    
+    // --- CHART CONFIGURATION FOR FSM STATE (UPDATED FOR TOOLTIP AND VISIBILITY) ---
+    function getStateChartOptions(chartType) {
+        return {
+            responsive: true, 
+            maintainAspectRatio: chartType !== 'expander',
+            // Plugin to draw the background color
+            plugins: {
+                legend: { 
+                    labels: { 
+                        color: '#ccc',
+                        filter: (legendItem, data) => legendItem.datasetIndex > 0
+                    } 
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    callbacks: {
+                        title: function(context) {
+                            const index = context[0].dataIndex;
+                            return `Packet Index: ${index + 1}`;
+                        },
+                        label: function(context) {
+                            if (!state.analysisResults) return;
+                            const index = context.dataIndex;
+                            const stateName = state.analysisResults.states[index];
+                            const probScore = state.analysisResults.probs[index].toFixed(4);
+                            
+                            if (context.datasetIndex === 0) {
+                                return [
+                                    `Status: ${stateName.toUpperCase()}`,
+                                    `Probability: ${probScore}`
+                                ];
+                            }
+                            return null;
+                        },
+                        labelColor: function(context) {
+                             if (!state.analysisResults) return;
+                             const index = context.dataIndex;
+                             const stateName = state.analysisResults.states[index];
+                             const color = FSM_STATE_COLORS[stateName] || '#fff';
+                             return {
+                                 borderColor: color,
+                                 backgroundColor: color
+                             };
+                        }
+                    }
+                },
+                // Custom plugin to draw the chart background explicitly
+                beforeDraw: (chart) => {
+                    const ctx = chart.ctx;
+                    ctx.save();
+                    ctx.fillStyle = '#7A7A73'; // User-requested dark gray
+                    ctx.fillRect(0, 0, chart.width, chart.height);
+                    ctx.restore();
+                }
+            },
+            scales: {
+                x: { 
+                    display: true, 
+                    title: { display: true, text: 'Packet Index', color: '#ccc' }, 
+                    ticks: { color: '#888' }, 
+                    grid: { drawOnChartArea: false, drawBorder: false } 
+                },
+                y: {
+                    display: false, 
+                    min: -0.5,
+                    max: 4.5, 
+                    grid: { drawOnChartArea: false, drawBorder: false },
+                    ticks: { display: false }
+                }
+            }
+        };
+    }
+    
+    function getStateChartData(analysisResults) {
+        const { states } = analysisResults;
+        const labels = states.map((_, i) => i + 1);
+        
+        // Data for the horizontal lines (boundaries)
+        const normalLineData = new Array(states.length).fill(0.5); 
+        const suspiciousLineData = new Array(states.length).fill(1.5);
+        const intrusionLineData = new Array(states.length).fill(2.5);
+        const alertLineData = new Array(states.length).fill(3.5);
+        
+        // Data for the dense, thin vertical striping (Packet Flow)
+        const backgroundBarData = new Array(states.length).fill(4); 
+        
+        return {
+            labels: labels,
+            datasets: [
+                // 1. Packet Flow Striping (Background, semi-transparent bars)
+                {
+                    label: 'Packet Flow',
+                    data: backgroundBarData,
+                    // Reduced opacity to 0.1 for the background bars to make the colored lines dominate
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)', 
+                    borderColor: 'transparent',
+                    type: 'bar',
+                    barPercentage: 1.0, 
+                    categoryPercentage: 1.0, 
+                    barThickness: 'flex',
+                    minBarLength: 0.1 
+                },
+                // 2. Normal State Boundary (Green)
+                {
+                    label: 'Normal',
+                    data: normalLineData,
+                    borderColor: FSM_STATE_COLORS.Normal,
+                    borderWidth: 6, // Increased thickness to 6
+                    fill: false,
+                    pointRadius: 0,
+                    type: 'line',
+                    yAxisID: 'y'
+                },
+                // 3. Suspicious State Boundary (Yellow)
+                {
+                    label: 'Suspicious',
+                    data: suspiciousLineData,
+                    borderColor: FSM_STATE_COLORS.Suspicious,
+                    borderWidth: 6, // Increased thickness to 6
+                    fill: false,
+                    pointRadius: 0,
+                    type: 'line',
+                    yAxisID: 'y'
+                },
+                // 4. Intrusion State Boundary (Orange)
+                {
+                    label: 'Intrusion',
+                    data: intrusionLineData,
+                    borderColor: FSM_STATE_COLORS.Intrusion,
+                    borderWidth: 6, // Increased thickness to 6
+                    fill: false,
+                    pointRadius: 0,
+                    type: 'line',
+                    yAxisID: 'y'
+                },
+                // 5. Alert State Boundary (Red)
+                {
+                    label: 'Alert',
+                    data: alertLineData,
+                    borderColor: FSM_STATE_COLORS.Alert, 
+                    borderWidth: 6, // Increased thickness to 6
+                    fill: false,
+                    pointRadius: 0,
+                    type: 'line',
+                    yAxisID: 'y'
+                }
+            ]
+        };
+    }
+    
+    function renderStateChart(canvas, analysisResults, chartType = 'dashboard') {
+        const ctx = canvas.getContext('2d');
+        if (state.charts.state && chartType === 'dashboard') state.charts.state.destroy();
+        
+        const chart = new Chart(ctx, {
+            type: 'bar', // Set default type to bar, but datasets override
+            data: getStateChartData(analysisResults),
+            options: getStateChartOptions(chartType)
+        });
+
+        if (chartType === 'dashboard') state.charts.state = chart;
+        return chart;
+    }
+
+
+    // --- CHART CONFIGURATION FOR FSM PARAMETERS ---
+    function getParamsChartOptions(chartType) {
+        return {
+            // ... (FSM Parameters options code remains unchanged)
+            responsive: true, 
+            maintainAspectRatio: chartType !== 'expander',
+            scales: {
+                x: { display: true, title: { display: true, text: 'Packet Index', color: '#ccc' }, ticks: { color: '#888' }, grid: { color: '#444', drawBorder: false } },
+                y: { display: true, title: { display: true, text: 'Parameter Value', color: '#ccc' }, ticks: { color: '#888' }, grid: { color: '#444', drawBorder: false } }
+            },
+            plugins: { legend: { labels: { color: '#ccc' } } }
+        };
+    }
+
+    function getParamsChartData(analysisResults) {
+        // ... (FSM Parameters data code remains unchanged)
+        const { params } = analysisResults;
+        return {
+            labels: params.thr.map((_, i) => i + 1),
+            datasets: [
+                { label: 'Threshold (THR)', data: params.thr, borderColor: '#00ffff', borderWidth: 2, tension: 0.1, pointRadius: 0 },
+                { label: 'K_to_Intrusion (K)', data: params.k, borderColor: '#00ff00', borderWidth: 2, tension: 0.1, pointRadius: 0 },
+                { label: 'M_to_Normal (M)', data: params.m, borderColor: '#ffff00', borderWidth: 2, tension: 0.1, pointRadius: 0 }
+            ]
+        };
+    }
+
+
+    function renderParamsChart(canvas, analysisResults, chartType = 'dashboard') {
+        // ... (FSM Parameters rendering code remains unchanged)
+        const ctx = canvas.getContext('2d');
+        if (state.charts.params && chartType === 'dashboard') state.charts.params.destroy();
+        
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: getParamsChartData(analysisResults),
+            options: getParamsChartOptions(chartType)
+        });
+
+        if (chartType === 'dashboard') state.charts.params = chart;
+        return chart;
+    }
+
+    function updateShapPlot(packetIndex, targetElementId = 'shap-plot') {
+        // ... (SHAP plot logic remains unchanged)
+        if (!state.analysisResults) {
+            document.getElementById(targetElementId).innerHTML = `<p class="text-gray-500 italic p-4">Run analysis to generate SHAP data.</p>`;
+            elements.shapCaption.textContent = '';
+            return;
+        }
+
+        const numFeatures = SIMULATED_FEATURE_NAMES.length;
+        const baseValue = 0.5; // Simulated E[f(x)] base prediction
+        
+        const simulatedShap = new Array(numFeatures).fill(0).map(() => (Math.random() - 0.5) * 0.3);
+        const finalValue = state.analysisResults.probs[packetIndex];
+        
+        const currentSum = simulatedShap.reduce((a, b) => a + b, 0);
+        const correction = finalValue - (baseValue + currentSum);
+        simulatedShap[numFeatures - 1] += correction;
+
+
+        const targetElement = document.getElementById(targetElementId);
+
+        const maxAbsShap = Math.max(...simulatedShap.map(Math.abs), 0.01); 
+        const totalScale = maxAbsShap * 2; 
+
+        targetElement.innerHTML = `
+            <div class="space-y-4">
+                <div class="flex justify-between items-center text-sm font-semibold mb-4 border-b border-gray-700 pb-2">
+                    <span class="text-gray-400">Base Prediction: <span class="text-white">${baseValue.toFixed(4)}</span></span>
+                    <span class="text-gray-400">Final Prediction: <span class="text-red-500 font-bold">${finalValue.toFixed(4)}</span></span>
+                </div>
+                ${simulatedShap.map((value, i) => {
+                    const isPositive = value >= 0;
+                    const widthPercent = (Math.abs(value) / totalScale) * 100;
+                    const zeroLinePercent = (maxAbsShap / totalScale) * 100; 
+
+                    const fontSize = targetElementId === 'expanded-shap-plot' ? 'text-sm sm:text-lg' : 'text-xs';
+                    const height = targetElementId === 'expanded-shap-plot' ? 'h-6' : 'h-4';
+                    const widthFraction = targetElementId === 'expanded-shap-plot' ? 'w-1/4' : 'w-1/3';
+                    const barWidthFraction = targetElementId === 'expanded-shap-plot' ? 'w-3/4' : 'w-2/3';
+
+                    const barStyle = isPositive 
+                        ? `left: ${zeroLinePercent}%; width: ${widthPercent}%;`
+                        : `left: ${zeroLinePercent - widthPercent}%; width: ${widthPercent}%;`;
+
+                    return `
+                        <div class="flex items-center ${fontSize}">
+                            <span class="${widthFraction} mr-2 text-right text-gray-400 truncate">${SIMULATED_FEATURE_NAMES[i]}</span>
+                            <div class="relative ${barWidthFraction} ${height} bg-gray-800 rounded-md overflow-hidden">
+                                <!-- Zero Line -->
+                                <div class="absolute top-0 bottom-0" style="left: ${zeroLinePercent}%; width: 2px; background-color: rgba(255, 255, 255, 0.6); z-index: 10;"></div>
+                                <!-- SHAP Bar (Red=Positive/Increase, Green=Negative/Decrease) -->
+                                <div class="shap-bar absolute top-0 bottom-0 ${isPositive ? 'bg-red-600' : 'bg-green-600'}" style="${barStyle}; z-index: 5;"></div>
+                            </div>
+                            <span class="ml-2 w-16 text-right text-${isPositive ? 'red-500' : 'green-500'} font-mono">${value.toFixed(4)}</span>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+        if (targetElementId === 'shap-plot') {
+            elements.shapCaption.textContent = `SHAP explanation for packet at index ${packetIndex + 1}. Red bars increase the malicious prediction, green bars decrease it.`;
+        }
+    }
+
+    function populateDataTable() {
+        // ... (Data table population logic remains unchanged)
+        if (!state.analysisResults || state.analysisResults.probs.length === 0) {
+            elements.dataTableBody.innerHTML = '<tr><td colspan="3" class="text-center text-gray-500">Run analysis to fetch data.</td></tr>';
+            return;
+        }
+
+        let html = '';
+        state.analysisResults.probs.forEach((prob, index) => {
+            const indexDisplay = index + 1;
+            const probDisplay = prob.toFixed(4);
+            const stateName = state.analysisResults.states[index];
+            const stateColor = FSM_STATE_COLORS[stateName] || '#e0e0e0';
+
+            html += `
+                <tr class="${index % 2 === 0 ? 'bg-gray-900' : 'bg-transparent'} hover:bg-gray-800 transition-colors">
+                    <td class="text-gray-300">${indexDisplay}</td>
+                    <td class="text-white font-mono">${probDisplay}</td>
+                    <td style="color: ${stateColor}; font-weight: bold;">${stateName.toUpperCase()}</td>
+                </tr>
+            `;
+        });
+        elements.dataTableBody.innerHTML = html;
+    }
+    
+    function downloadDataAsCSV() {
+        // ... (Download CSV logic remains unchanged)
+        if (!state.analysisResults || state.analysisResults.probs.length === 0) {
+            console.error("No analysis results available to download.");
+            return;
+        }
+
+        const data = state.analysisResults.probs;
+        const states = state.analysisResults.states;
+        let csvContent = "Packet Index,Malicious Probability Score,Classification\n";
+
+        data.forEach((prob, index) => {
+            const indexDisplay = index + 1;
+            const probDisplay = prob.toFixed(6);
+            const stateName = states[index];
+            csvContent += `${indexDisplay},${probDisplay},${stateName}\n`;
+        });
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+
+        if (link.download !== undefined) {
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", "IntrusionXpert_Analysis_Data.csv");
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    }
+    
+    function openChartExpander(chartType) {
+        if (!state.analysisResults) return;
+
+        elements.expandedChartContainer.innerHTML = '';
+        let newCanvas;
+        let title = "";
+
+        if (chartType === 'prob') {
+            title = "Malicious Probability Over Time (Expanded)";
+            newCanvas = document.createElement('canvas');
+            newCanvas.id = 'expanded-prob-chart';
+            elements.expandedChartContainer.appendChild(newCanvas);
+            renderProbChart(newCanvas, state.analysisResults, 'expander');
+        } else if (chartType === 'state') {
+            title = "FSM State Over Time (Expanded)";
+            newCanvas = document.createElement('canvas');
+            newCanvas.id = 'expanded-state-chart';
+            elements.expandedChartContainer.appendChild(newCanvas);
+            renderStateChart(newCanvas, state.analysisResults, 'expander');
+        } else if (chartType === 'params') {
+            title = "FSM Parameter Adaptivity (Expanded)";
+            newCanvas = document.createElement('canvas');
+            newCanvas.id = 'expanded-params-chart';
+            elements.expandedChartContainer.appendChild(newCanvas);
+            renderParamsChart(newCanvas, state.analysisResults, 'expander');
+        } else if (chartType === 'shap') {
+            title = "SHAP Explainability Plot (Expanded)";
+            const shapIndex = parseInt(elements.shapSelect.value);
+            if (!isNaN(shapIndex) && shapIndex >= 0) {
+                const shapDiv = document.createElement('div');
+                shapDiv.id = 'expanded-shap-plot';
+                shapDiv.className = 'w-full h-full p-4 overflow-y-auto';
+                elements.expandedChartContainer.appendChild(shapDiv);
+                updateShapPlot(shapIndex, 'expanded-shap-plot');
+            } else {
+                 elements.expandedChartContainer.innerHTML = '<p class="text-center text-gray-500 pt-10">Select a malicious packet first.</p>';
+            }
+        }
+        
+        elements.expandedChartTitle.textContent = title;
+        elements.chartExpanderModal.style.display = 'flex';
+    }
+
+
+    elements.getStartedBtn.addEventListener('click', () => {
+        showPage('dashboard-page');
+        // Do NOT run analysis automatically on initial dashboard load now
+        updateInitialDashboardState(); 
+    });
+    elements.goBackBtn.addEventListener('click', () => {
+        showPage('landing-page');
+        state.analysisResults = null;
+    });
+    
+    elements.analyseBtn.addEventListener('click', () => {
+        simulateAnalysis(state.currentPacketCount);
+    });
+    
+    elements.fileInput.addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            elements.uploadLabel.textContent = `Selected File: ${file.name}`;
+            
+            // Logic: Set packet count to 22253 if a file is selected, or a random value up to 50k
+            let newPacketCount = 22253;
+            // Introduce randomness for simulation, leaning heavily toward 22253 (e.g., 90% chance it's 22253, 10% chance it's random up to 50k)
+            if (Math.random() > 0.90) { 
+                 newPacketCount = Math.floor(Math.random() * (MAX_SIMULATED_PACKETS - 100 + 1)) + 100;
+            }
+            state.currentPacketCount = newPacketCount;
+            
+            elements.analyseBtn.classList.remove('bg-red-600', 'hover:bg-red-700');
+            elements.analyseBtn.textContent = `Run Analysis`; 
+            
+        } else {
+            elements.uploadLabel.textContent = "Select CSV File (Simulated: traffic.csv)";
+            state.currentPacketCount = 0; // Reset count if selection is cleared
+            elements.analyseBtn.textContent = `Run Analysis`; 
+        }
+        // Update summary cards to show potential packet count before running analysis
+        if (state.currentPacketCount > 0) {
+             elements.viewDataCount.textContent = `(${state.currentPacketCount.toLocaleString()} Entries ready)`;
+             elements.summarySection.innerHTML = `
+                ${createSummaryCard("Total Packets", state.currentPacketCount.toLocaleString(), '#00ffff')}
+                ${createSummaryCard("Intrusions Detected", 0, FSM_STATE_COLORS['Not Detected'])}
+                ${createSummaryCard("Live Status", 'READY TO ANALYZE', '#00ff00')}
+            `;
+        } else {
+            updateInitialDashboardState();
+        }
+    });
+
+    elements.shapSelect.addEventListener('change', (event) => {
+        const selectedIndex = parseInt(event.target.value);
+        if (!isNaN(selectedIndex)) updateShapPlot(selectedIndex);
+    });
+    elements.fullscreenBtn.addEventListener('click', toggleFullscreen);
+    
+    elements.thresholdSlider.addEventListener('input', (event) => elements.thresholdVal.textContent = event.target.value);
+    elements.kSlider.addEventListener('input', (event) => elements.kVal.textContent = event.target.value);
+    elements.mSlider.addEventListener('input', (event) => elements.mVal.textContent = event.target.value);
+    elements.windowSlider.addEventListener('input', (event) => elements.windowVal.textContent = event.target.value);
+    elements.menuBtn.addEventListener('click', () => toggleSidebar());
+    elements.overlay.addEventListener('click', () => toggleSidebar());
+    elements.closeSidebarBtn.addEventListener('click', () => toggleSidebar());
+
+
+    elements.viewDataBtn.addEventListener('click', () => {
+        populateDataTable();
+        elements.dataModal.style.display = 'flex';
+    });
+    elements.closeModalBtn.addEventListener('click', () => {
+        elements.dataModal.style.display = 'none';
+    });
+    elements.dataModal.addEventListener('click', (event) => {
+        if (event.target === elements.dataModal) {
+            elements.dataModal.style.display = 'none';
+        }
+    });
+    elements.downloadDataBtn.addEventListener('click', downloadDataAsCSV);
+
+    elements.closeChartExpanderBtn.addEventListener('click', () => {
+        elements.chartExpanderModal.style.display = 'none';
+    });
+    elements.chartExpanderModal.addEventListener('click', (event) => {
+        if (event.target === elements.chartExpanderModal) {
+            elements.chartExpanderModal.style.display = 'none';
+        }
+    });
+
+
+    window.onload = function() {
+        initThreeJS();
+        animate();
+        updateInitialDashboardState();
+        showPage('landing-page');
+    };
+</script>
+</body>
+</html>
