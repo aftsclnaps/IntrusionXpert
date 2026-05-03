@@ -4,6 +4,7 @@ import streamlit as st
 import pandas as pd, numpy as np, joblib, tensorflow as tf
 from collections import deque
 from sklearn.ensemble import RandomForestClassifier
+from llm_assistant import generate_security_advice
 import shap
 import matplotlib.pyplot as plt
 import io
@@ -150,6 +151,21 @@ if uploaded:
         for p in probs:
             s, prm = fsm.step(float(p))
             states.append(s); thrs.append(prm["thr"]); ks.append(prm["k"]); ms.append(prm["m"])
+            latest_state = states[-1]
+latest_prob = probs[-1]
+
+advice = generate_security_advice(
+    latest_prob,
+    latest_state
+)
+
+st.subheader("AI Security Assistant")
+
+st.write("Severity:", advice["severity"])
+st.write("Explanation:", advice["explanation"])
+
+for rec in advice["recommendation"]:
+    st.write("-", rec)
 
         # --- Plots ---
         st.subheader("1. Malicious Probability Over Time")
